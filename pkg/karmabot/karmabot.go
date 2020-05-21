@@ -3,7 +3,7 @@ package karmabot
 import (
     "github.com/mvazquezc/karma-bot/pkg/database"
     "github.com/mvazquezc/karma-bot/pkg/commands"
-    "github.com/nlopes/slack"
+    "github.com/slack-go/slack"
     "regexp"
     "strings"
     "log"
@@ -29,7 +29,7 @@ func NewKarmaBot(apiToken string, dbFile string) {
             }
 
             info := rtm.GetInfo()
-            
+
             var channelInformation *slack.Channel
             var groupInfo *slack.Group
 
@@ -47,12 +47,15 @@ func NewKarmaBot(apiToken string, dbFile string) {
             }
 
             var channelName string
+            var members []string
             if groupInfo != nil {
                 channelName = groupInfo.NameNormalized
+                members = groupInfo.Members
             } else {
                 channelName = channelInformation.NameNormalized
+                members = channelInformation.Members
             }
-            
+
             text := ev.Text
             text = strings.TrimSpace(text)
             text = strings.ToLower(text)
@@ -82,7 +85,15 @@ func NewKarmaBot(apiToken string, dbFile string) {
                     if strings.HasPrefix(karmaWord, "<@") && strings.HasSuffix(karmaWord, ">") {
                         karmaWord = getUsername(api, karmaWord)
                     }
-                    // Todo: create a logger and use it :D
+                    if karmaWord == "!here>" {
+                        log.Printf("@here detected, getting all users from the channel for the karma command")
+                        karmaWord = ""
+                        for _, member := range members {
+                            member = "<@" + member + ">"
+                            karmaWord = karmaWord + getUsername(api, member) + " "
+                        }
+                        karmaWord = strings.TrimSpace(karmaWord)
+                    }
                     log.Printf("Karma word: %s, Karma modifier: %s, Channel: %s", karmaWord, karmaModifier, channelName)
 
                     alias := db.GetAlias(karmaWord, channelName)
@@ -166,12 +177,9 @@ func getUsername(api *slack.Client, word string) string {
     if len(user.Profile.DisplayNameNormalized) > 0 {
         displayName = strings.ToLower(user.Profile.DisplayNameNormalized)
     } else {
-        displayName = strings.ToLower(user.Profile.FirstName)
+        displayName = strings.ToLower(user.Profile.RealName)
     }
     log.Printf("Display name for user %s is %s", userName, displayName)
     return strings.Replace(displayName, " ", ".", -1)
 }
 
-// Implement commands for setting karma, alias, etc..
-// https://github.com/nlopes/slack/blob/master/examples/slash/slash.go
-// https://api.slack.com/apps/AP5MM8YC8/slash-commands?

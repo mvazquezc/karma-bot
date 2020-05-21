@@ -82,25 +82,9 @@ func NewKarmaBot(apiToken string, dbFile string) {
                 if ev.User != info.User.ID && matched {
                     karmaWord := captureGroups[1]
                     karmaModifier := captureGroups[2]
-                    if strings.HasPrefix(karmaWord, "<@") && strings.HasSuffix(karmaWord, ">") {
-                        karmaWord = getUsername(api, karmaWord)
-                    }
-                    if karmaWord == "!here>" {
-                        log.Printf("@here detected, getting all users from the channel for the karma command")
-                        karmaWord = ""
-                        for _, member := range members {
-                            member = "<@" + member + ">"
-                            karmaWord = karmaWord + getUsername(api, member) + " "
-                        }
-                        karmaWord = strings.TrimSpace(karmaWord)
-                    }
-                    log.Printf("Karma word: %s, Karma modifier: %s, Channel: %s", karmaWord, karmaModifier, channelName)
 
-                    alias := db.GetAlias(karmaWord, channelName)
-                    if len(alias) > 0 {
-                        log.Printf("Word %s has an alias configured, using alias %s", karmaWord, alias)
-                        karmaWord = alias
-                    }
+                    // Get karmaModifier
+
                     karmaCounter := 0
                     switch karmaModifier {
                     case "++":
@@ -116,6 +100,41 @@ func NewKarmaBot(apiToken string, dbFile string) {
                         log.Printf("Karma modifier %s not allowed", karmaModifier)
                         continue
                     }
+
+                    if strings.HasPrefix(karmaWord, "<@") && strings.HasSuffix(karmaWord, ">") {
+                        karmaWord = getUsername(api, karmaWord)
+                    }
+                    if karmaWord == "!here>" {
+                        log.Printf("@here detected, getting all users from the channel for the karma command")
+                        karmaWord = ""
+                        for _, member := range members {
+                            member = "<@" + member + ">"
+                            karmaWord = getUsername(api, member)
+                            // add karma to every user TODO: This should be implemented in a method to be called multiple times
+                            alias := db.GetAlias(karmaWord, channelName)
+                            if len(alias) > 0 {
+                                log.Printf("Word %s has an alias configured, using alias %s", karmaWord, alias)
+                                karmaWord = alias
+                            }
+                            if karmaCounter != 0 {
+                                userKarma, notifyKarma := db.UpdateKarma(channelName, karmaWord, karmaCounter)
+                                if notifyKarma {
+                                    karmaMessage := "`" + karmaWord + "` has `" + userKarma + "` karma points!"
+                                    rtm.SendMessage(rtm.NewOutgoingMessage(karmaMessage, ev.Channel))
+                                }
+                            }
+                        }
+                        // Continue to next loop iteration since karma for @here is already managed
+                        continue
+                    }
+                    log.Printf("Karma word: %s, Karma modifier: %s, Channel: %s", karmaWord, karmaModifier, channelName)
+                    // add karma to the work TODO: This should be implemented in the method mentioned above
+                    alias := db.GetAlias(karmaWord, channelName)
+                    if len(alias) > 0 {
+                        log.Printf("Word %s has an alias configured, using alias %s", karmaWord, alias)
+                        karmaWord = alias
+                    }
+
                     if karmaCounter != 0 {
                         userKarma, notifyKarma := db.UpdateKarma(channelName, karmaWord, karmaCounter)
                         if notifyKarma {

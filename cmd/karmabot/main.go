@@ -1,13 +1,14 @@
 package main
 
 import (
-    "github.com/mvazquezc/karma-bot/pkg/karmabot"
-    "os"
-    "log"
+	"log"
+	"os"
+
+	"github.com/mvazquezc/karma-bot/pkg/karmabot"
 )
 
 func main() {
-    version := "1.0"
+    version := "1.1"
     log.Printf("Karma-bot version %s", version)
     apiToken := os.Getenv("API_TOKEN")
     // Check if database exists

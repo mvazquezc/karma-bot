@@ -1,12 +1,13 @@
 package karmabot
 
 import (
-    "github.com/mvazquezc/karma-bot/pkg/database"
-    "github.com/mvazquezc/karma-bot/pkg/commands"
-    "github.com/slack-go/slack"
-    "regexp"
-    "strings"
-    "log"
+	"log"
+	"regexp"
+	"strings"
+
+	"github.com/mvazquezc/karma-bot/pkg/commands"
+	"github.com/mvazquezc/karma-bot/pkg/database"
+	"github.com/slack-go/slack"
 )
 
 // NewKarmaBot New bot
@@ -27,7 +28,7 @@ func NewKarmaBot(apiToken string, dbFile string) {
                 log.Print("Message edited... ignoring")
                 continue
             }
-
+            
             info := rtm.GetInfo()
 
             var channelInformation *slack.Channel
@@ -76,15 +77,14 @@ func NewKarmaBot(apiToken string, dbFile string) {
             splitText := strings.Fields(text)
             splitText = fixEmptyKarma(splitText)
             for _, word := range splitText {
-                r := regexp.MustCompile("(.[A-Za-z0-9<>@.]+?)([+-]+)$")
+                r := regexp.MustCompile("(.[A-Za-z0-9äëïöüÄËÏÖÜ<>@.]+?)([+-]+)$")
                 matched := r.MatchString(word)
                 captureGroups := r.FindStringSubmatch(word)
                 if ev.User != info.User.ID && matched {
                     karmaWord := captureGroups[1]
                     karmaModifier := captureGroups[2]
-
+                    log.Printf("Karma word: %s, Karma modifier: %s, Channel: %s", karmaWord, karmaModifier, channelName)
                     // Get karmaModifier
-
                     karmaCounter := 0
                     switch karmaModifier {
                     case "++":
@@ -110,38 +110,12 @@ func NewKarmaBot(apiToken string, dbFile string) {
                         for _, member := range members {
                             member = "<@" + member + ">"
                             karmaWord = getUsername(api, member)
-                            // add karma to every user TODO: This should be implemented in a method to be called multiple times
-                            alias := db.GetAlias(karmaWord, channelName)
-                            if len(alias) > 0 {
-                                log.Printf("Word %s has an alias configured, using alias %s", karmaWord, alias)
-                                karmaWord = alias
-                            }
-                            if karmaCounter != 0 {
-                                userKarma, notifyKarma := db.UpdateKarma(channelName, karmaWord, karmaCounter)
-                                if notifyKarma {
-                                    karmaMessage := "`" + karmaWord + "` has `" + userKarma + "` karma points!"
-                                    rtm.SendMessage(rtm.NewOutgoingMessage(karmaMessage, ev.Channel))
-                                }
-                            }
+                            handleKarma(rtm, ev, db, karmaWord, channelName, karmaCounter)
                         }
                         // Continue to next loop iteration since karma for @here is already managed
                         continue
                     }
-                    log.Printf("Karma word: %s, Karma modifier: %s, Channel: %s", karmaWord, karmaModifier, channelName)
-                    // add karma to the work TODO: This should be implemented in the method mentioned above
-                    alias := db.GetAlias(karmaWord, channelName)
-                    if len(alias) > 0 {
-                        log.Printf("Word %s has an alias configured, using alias %s", karmaWord, alias)
-                        karmaWord = alias
-                    }
-
-                    if karmaCounter != 0 {
-                        userKarma, notifyKarma := db.UpdateKarma(channelName, karmaWord, karmaCounter)
-                        if notifyKarma {
-                            karmaMessage := "`" + karmaWord + "` has `" + userKarma + "` karma points!"
-                            rtm.SendMessage(rtm.NewOutgoingMessage(karmaMessage, ev.Channel))
-                        }
-                    }
+                    handleKarma(rtm, ev, db, karmaWord, channelName, karmaCounter)
                 }
             }
 
@@ -180,6 +154,24 @@ func fixEmptyKarma(text []string) []string {
         }
     }
     return finalText
+}
+
+func handleKarma(rtm *slack.RTM, ev *slack.MessageEvent, db database.Database, word string, channelName string, karmaCounter int) {
+    
+    alias := db.GetAlias(word, channelName)
+
+    if len(alias) > 0 {
+        log.Printf("Word %s has an alias configured, using alias %s", word, alias)
+        word = alias
+    }
+    
+    if karmaCounter != 0 {
+        userKarma, notifyKarma := db.UpdateKarma(channelName, word, karmaCounter)
+        if notifyKarma {
+            karmaMessage := "`" + word + "` has `" + userKarma + "` karma points!"
+            rtm.SendMessage(rtm.NewOutgoingMessage(karmaMessage, ev.Channel))
+        }
+    }
 }
 
 func getUsername(api *slack.Client, word string) string {

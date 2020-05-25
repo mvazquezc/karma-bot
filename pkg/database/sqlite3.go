@@ -1,11 +1,12 @@
 package database
 
 import (
-    "database/sql"
-    _ "github.com/mattn/go-sqlite3"
-    "os"
-    "strconv"
-    "log"
+	"database/sql"
+	"log"
+	"os"
+	"strconv"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // Database type
@@ -148,6 +149,12 @@ func (db *Database) GetAlias(word string, channel string) string {
     }
 
     return result
+}
+
+// DelAlias Deletes an alias from the database
+func (db *Database) DelAlias(channel string, word string, alias string) {
+    aliasDelete := "DELETE FROM alias WHERE word == '" + word + "' AND channel == '" + channel + "' AND alias == '" + alias + "';"
+    db.runStatement(aliasDelete)
 }
 
 // GetAdmins returns admins for a given channel

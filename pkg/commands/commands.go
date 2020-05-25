@@ -1,10 +1,11 @@
 package commands
 
 import (
-    "github.com/mvazquezc/karma-bot/pkg/database"
-    "log"
-    "strings"
-    "strconv"
+	"log"
+	"strconv"
+	"strings"
+
+	"github.com/mvazquezc/karma-bot/pkg/database"
 )
 
 // Commands type
@@ -48,8 +49,11 @@ func (cmd *Commands) ProcessCommand(channel string, who string, operation string
     case "alias":
         if operation == "set" {
             commandOutput = cmd.setAlias(channel, operationArgs, who)
-        } else {
+        } else if operation == "get" {
+            
             commandOutput = cmd.getAlias(channel, operationArgs)
+        } else {
+            commandOutput = cmd.delAlias(channel, operationArgs, who)
         }
     default:
         log.Printf("Unknown operationGroup %s", operationGroup)
@@ -212,6 +216,38 @@ func (cmd *Commands) setAlias(channel string, parameters string, who string) str
     return commandResult
 }
 
+// usage: kb del alias word alias
+func (cmd *Commands) delAlias(channel string, parameters string, who string) string {
+    var commandResult string
+    admins, _ := cmd.getAdmins(channel)
+    requesterIsAdmin := contains(admins, who)
+    if requesterIsAdmin {
+        // We expect parameters to have something like "word alias" so we need to check that
+        params := strings.Fields(parameters)
+        if len(params) != 2 {
+            log.Printf("Received more than 2 parameters. Params: %s", parameters)
+            commandResult = "Incorrect parameters. Usage kb del alias word alias"
+        } else {
+            word := params[0]
+            alias := params[1]
+            log.Printf("Received word %s and alias %s", word, alias)
+            if alias != word {
+                cmd.db.DelAlias(channel, word, alias)
+                log.Printf("Alias %s deleted for word %s", alias, word)
+                commandResult = "User <@" + strings.ToUpper(who) + "> deleted alias `" + alias + "` for word `" + word + "` on this channel"
+            } else {
+                log.Printf("Invalid alias %s for word %s", alias, word)
+                commandResult = "Invalid alias `" + alias + "` for word `" + word + "`"
+            }
+        }
+    } else {
+        log.Printf("Requester user %s, is not admin on channel %s. Operation canceled", who, channel)
+        commandResult = "User <@" + strings.ToUpper(who) + "> has no permissions to delete alias on this channel"
+    }
+    return commandResult
+}
+
+
 // usage: kb get alias word
 func (cmd *Commands) getAlias(channel string, parameters string) string {
     log.Printf("Getting alias for word %s in channel %s", parameters, channel)
@@ -254,7 +290,6 @@ func (cmd *Commands) delAdmin(channel string, user string, who string) string {
                     cmd.db.DeleteAdmin(channel, user)
                     commandResult = "User <@" + strings.ToUpper(user) + "> deleted from admins for this channel"
                 } else {
-                    
                     log.Printf("User %s is not configured as admin for channel %s. Deletion canceled.", user, channel)
                     commandResult = "User <@" + strings.ToUpper(user) + "> is not admin for this channel. Deletion canceled."
                 }

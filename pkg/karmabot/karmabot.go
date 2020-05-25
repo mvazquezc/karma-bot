@@ -7,6 +7,7 @@ import (
 
 	"github.com/mvazquezc/karma-bot/pkg/commands"
 	"github.com/mvazquezc/karma-bot/pkg/database"
+	"github.com/mvazquezc/karma-bot/pkg/utils"
 	"github.com/slack-go/slack"
 )
 
@@ -62,7 +63,7 @@ func NewKarmaBot(apiToken string, dbFile string) {
             text = strings.ToLower(text)
             // Commands are implemented using a keyword rather than using slash commands to avoid
             // having to publish the bot in order to receive webhooks
-            r := regexp.MustCompile("^(kb) (set|get|del) (karma|admin|setting|alias)(.*)$")
+            r := regexp.MustCompile("^(kb) (set|get|del) (karma|admin|setting|alias|help)(.*)$")
             matched := r.MatchString(text)
             if matched {
                 captureGroups := r.FindStringSubmatch(text)
@@ -70,12 +71,17 @@ func NewKarmaBot(apiToken string, dbFile string) {
                 operationGroup := captureGroups[3]
                 operationArgs := captureGroups[4]
                 who := strings.ToLower(ev.User)
-                // add user that fires the command to the args
-                commandOutput := commands.ProcessCommand(channelName, who, operation, operationGroup, operationArgs)
-                rtm.SendMessage(rtm.NewOutgoingMessage(commandOutput, ev.Channel))
+                if (operation == "get" && operationGroup == "help") {
+                    log.Printf("Printing help on channel %s", channelName)
+                    utils.PrintCommandsUsage(rtm, ev)
+                } else {
+                    // add user that fires the command to the args
+                    commandOutput := commands.ProcessCommand(channelName, who, operation, operationGroup, operationArgs)
+                    rtm.SendMessage(rtm.NewOutgoingMessage(commandOutput, ev.Channel))
+                }
             }
             splitText := strings.Fields(text)
-            splitText = fixEmptyKarma(splitText)
+            splitText = utils.FixEmptyKarma(splitText)
             for _, word := range splitText {
                 r := regexp.MustCompile("(.[A-Za-z0-9äëïöüÄËÏÖÜ<>@.]+?)([+-]+)$")
                 matched := r.MatchString(word)
@@ -102,20 +108,20 @@ func NewKarmaBot(apiToken string, dbFile string) {
                     }
 
                     if strings.HasPrefix(karmaWord, "<@") && strings.HasSuffix(karmaWord, ">") {
-                        karmaWord = getUsername(api, karmaWord)
+                        karmaWord = utils.GetUsername(api, karmaWord)
                     }
                     if karmaWord == "!here>" {
                         log.Printf("@here detected, getting all users from the channel for the karma command")
                         karmaWord = ""
                         for _, member := range members {
                             member = "<@" + member + ">"
-                            karmaWord = getUsername(api, member)
-                            handleKarma(rtm, ev, db, karmaWord, channelName, karmaCounter)
+                            karmaWord = utils.GetUsername(api, member)
+                            utils.HandleKarma(rtm, ev, db, karmaWord, channelName, karmaCounter)
                         }
                         // Continue to next loop iteration since karma for @here is already managed
                         continue
                     }
-                    handleKarma(rtm, ev, db, karmaWord, channelName, karmaCounter)
+                    utils.HandleKarma(rtm, ev, db, karmaWord, channelName, karmaCounter)
                 }
             }
 
@@ -130,67 +136,3 @@ func NewKarmaBot(apiToken string, dbFile string) {
         }
     }
 }
-
-// fixEmptyKarma When user types @user and hits tab a space is inserted
-// that ends up in a space between the user handler and the karma modifier
-// this function will fix that by removing that space when detected
-func fixEmptyKarma(text []string) []string {
-    karmaModifiers := map[string]bool {
-        "++": true,
-        "--": true,
-        "+++": true,
-        "---": true,
-    }
-    var finalText []string
-    var finalIndex int = 0
-    for index, word := range text {
-        var newWord string = word;
-        if karmaModifiers[word] && index>0 && !strings.HasSuffix(finalText[finalIndex-1], word) {
-            newWord = text[index-1] + newWord
-            finalText[finalIndex-1] = newWord
-        } else {
-            finalIndex++
-            finalText = append(finalText, newWord)
-        }
-    }
-    return finalText
-}
-
-func handleKarma(rtm *slack.RTM, ev *slack.MessageEvent, db database.Database, word string, channelName string, karmaCounter int) {
-    
-    alias := db.GetAlias(word, channelName)
-
-    if len(alias) > 0 {
-        log.Printf("Word %s has an alias configured, using alias %s", word, alias)
-        word = alias
-    }
-    
-    if karmaCounter != 0 {
-        userKarma, notifyKarma := db.UpdateKarma(channelName, word, karmaCounter)
-        if notifyKarma {
-            karmaMessage := "`" + word + "` has `" + userKarma + "` karma points!"
-            rtm.SendMessage(rtm.NewOutgoingMessage(karmaMessage, ev.Channel))
-        }
-    }
-}
-
-func getUsername(api *slack.Client, word string) string {
-    log.Printf("Getting username for user %s", word)
-    displayName := "not_set"
-    r := regexp.MustCompile("(<@)(.*)(>)")
-    captureGroups := r.FindStringSubmatch(word)
-    userName := captureGroups[2]
-    userName = strings.ToUpper(userName)
-    user, err := api.GetUserInfo(userName)
-    if err != nil {
-        panic(err)
-    }
-    if len(user.Profile.DisplayNameNormalized) > 0 {
-        displayName = strings.ToLower(user.Profile.DisplayNameNormalized)
-    } else {
-        displayName = strings.ToLower(user.Profile.RealName)
-    }
-    log.Printf("Display name for user %s is %s", userName, displayName)
-    return strings.Replace(displayName, " ", ".", -1)
-}
-

@@ -83,7 +83,7 @@ func NewKarmaBot(apiToken string, dbFile string) {
             splitText := strings.Fields(text)
             splitText = utils.FixEmptyKarma(splitText)
             for _, word := range splitText {
-                r := regexp.MustCompile("(.[A-Za-z0-9äëïöüÄËÏÖÜ<>@.]+?)([+-]+)$")
+                r := regexp.MustCompile("(.[A-Za-z0-9äëïöüÄËÏÖÜ<>@.-]+?)([+-]+)$")
                 matched := r.MatchString(word)
                 captureGroups := r.FindStringSubmatch(word)
                 if ev.User != info.User.ID && matched {

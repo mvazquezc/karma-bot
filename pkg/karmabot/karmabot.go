@@ -83,9 +83,16 @@ func NewKarmaBot(apiToken string, dbFile string) {
             splitText := strings.Fields(text)
             splitText = utils.FixEmptyKarma(splitText)
             for _, word := range splitText {
+                trimmedWord := strings.TrimSpace(word)
+                // Get rid of ``` at the start of the word, usually added by code blocks on slack
+                trimmedWord = strings.TrimLeft(trimmedWord, "```")
+                // Get rid of +++ at the start of the word, usually added by code patch outputs
+                trimmedWord = strings.TrimLeft(trimmedWord, "+++")
+                // Get rid of --- at the start of the word, usually added by code patch outputs
+                trimmedWord = strings.TrimLeft(trimmedWord, "---")
                 r := regexp.MustCompile("(.[A-Za-z0-9äëïöüÄËÏÖÜ<>@.-]+?)([+-]+)$")
-                matched := r.MatchString(word)
-                captureGroups := r.FindStringSubmatch(word)
+                matched := r.MatchString(trimmedWord)
+                captureGroups := r.FindStringSubmatch(trimmedWord)
                 if ev.User != info.User.ID && matched {
                     karmaWord := captureGroups[1]
                     karmaModifier := captureGroups[2]

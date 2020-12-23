@@ -24,9 +24,16 @@ func FixEmptyKarma(text []string) []string {
     var finalIndex int = 0
     for index, word := range text {
         var newWord string = word;
+
         if karmaModifiers[word] && index>0 && !strings.HasSuffix(finalText[finalIndex-1], word) {
             newWord = text[index-1] + newWord
-            finalText[finalIndex-1] = newWord
+            // We only want to fix the extra space added when pressing tab for autocomplete a user handler
+            r := regexp.MustCompile("(<@)(.*)(>)")
+            matched := r.MatchString(newWord)
+            if matched {
+                // The word preceding the karma modifiers and a space is a username, we want to fix it
+                finalText[finalIndex-1] = newWord
+            }
         } else {
             finalIndex++
             finalText = append(finalText, newWord)

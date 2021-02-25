@@ -1,4 +1,4 @@
-FROM golang:latest
+FROM golang:1.14
 WORKDIR /go/src/github.com/mvazquezc/karma-bot/
 ADD cmd /go/src/github.com/mvazquezc/karma-bot/cmd
 ADD pkg /go/src/github.com/mvazquezc/karma-bot/pkg

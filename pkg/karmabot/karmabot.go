@@ -29,34 +29,35 @@ func NewKarmaBot(apiToken string, dbFile string) {
                 log.Print("Message edited... ignoring")
                 continue
             }
-            
             info := rtm.GetInfo()
 
             var channelInformation *slack.Channel
-            var groupInfo *slack.Group
+            var membersInformation []string
 
-            channelInformation, err := rtm.GetChannelInfo(ev.Channel)
+            // Get conversation information
+            channelInformation, err := rtm.GetConversationInfo(ev.Channel, true)
 
             if err != nil {
-                log.Printf("Error getting channel information. Error was: %s", err)
-                log.Print("Trying to get channel information from GroupInfo API")
-                groupInfo, err = rtm.GetGroupInfo(ev.Channel)
-                if err != nil {
-                    log.Printf("Error getting channel information from GroupInfo API. Error was: %s", err)
-                    log.Print("Ignoring message since we cannot get channel information")
-                    continue
-                }
+                log.Print("Ignoring message since we cannot get channel information")
+                continue
+            }
+            memberParameters := slack.GetUsersInConversationParameters{
+                ChannelID: ev.Channel,
+            }
+
+            membersInformation, _, err = api.GetUsersInConversation(&memberParameters)
+            if err != nil {
+                log.Print("Ignoring message since we cannot get members information")
+                continue
             }
 
             var channelName string
             var members []string
-            if groupInfo != nil {
-                channelName = groupInfo.NameNormalized
-                members = groupInfo.Members
-            } else {
-                channelName = channelInformation.NameNormalized
-                members = channelInformation.Members
-            }
+
+            channelName = channelInformation.NameNormalized
+            members = membersInformation
+
+            log.Printf("Channel name: %s, members: %s", channelName, members)
 
             text := ev.Text
             text = strings.TrimSpace(text)

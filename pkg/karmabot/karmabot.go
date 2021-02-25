@@ -57,7 +57,7 @@ func NewKarmaBot(apiToken string, dbFile string) {
             channelName = channelInformation.NameNormalized
             members = membersInformation
 
-            log.Printf("Channel name: %s, members: %s", channelName, members)
+            //log.Printf("Channel name: %s, members: %s", channelName, members)
 
             text := ev.Text
             text = strings.TrimSpace(text)

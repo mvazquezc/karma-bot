@@ -80,7 +80,7 @@ func (cmd *Commands) setSetting(channel string, parameters string, who string) s
             settingName := params[0]
             settingValue := params[1]
             // We need to ensure the setting is within the valid settings list
-            validSettings := []string{"notify_karma"}
+            validSettings := []string{"notify_karma", "use_karma_emojis"}
             validSetting := contains(validSettings, settingName)
             if validSetting {
                 // Convert string to int to ensure we received a setting value

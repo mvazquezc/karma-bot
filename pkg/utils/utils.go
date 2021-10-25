@@ -4,6 +4,7 @@ import (
 	"log"
 	"regexp"
 	"strings"
+    "strconv"
 
 	"github.com/mvazquezc/karma-bot/pkg/database"
 	"github.com/slack-go/slack"
@@ -46,6 +47,14 @@ func FixEmptyKarma(text []string) []string {
 func HandleKarma(rtm *slack.RTM, ev *slack.MessageEvent, db database.Database, word string, channelName string, karmaCounter int) {
 
     alias := db.GetAlias(word, channelName)
+    
+    useKarmaEmojisSetting := db.GetSetting(channelName, "use_karma_emojis")
+    
+    if len(useKarmaEmojisSetting) <= 0 {
+        useKarmaEmojisSetting = "0"
+    }
+    useKarmaEmojis, _ := strconv.Atoi(useKarmaEmojisSetting)
+
 
     if len(alias) > 0 {
         log.Printf("Word %s has an alias configured, using alias %s", word, alias)
@@ -54,9 +63,13 @@ func HandleKarma(rtm *slack.RTM, ev *slack.MessageEvent, db database.Database, w
 
     if karmaCounter != 0 {
         userKarma, notifyKarma := db.UpdateKarma(channelName, word, karmaCounter)
-        karmaEmoji := ":thumbsup:"
-        if karmaCounter < 0 {
-            karmaEmoji = ":thumbsdown:"
+        // Only send emojis if those are enabled in the channel
+        karmaEmoji := ""
+        if useKarmaEmojis == 1 {
+            karmaEmoji = ":thumbsup:"
+            if karmaCounter < 0 {
+                karmaEmoji = ":thumbsdown:"
+            }
         }
         if notifyKarma {
             karmaMessage := "`" + word + "` has `" + userKarma + "` karma points! " + karmaEmoji

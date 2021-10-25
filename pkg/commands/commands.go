@@ -4,6 +4,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+    "sort"
 
 	"github.com/mvazquezc/karma-bot/pkg/database"
 )
@@ -29,6 +30,8 @@ func (cmd *Commands) ProcessCommand(channel string, who string, operation string
     case "karma":
         if operation == "set" {
             commandOutput = cmd.setKarma(channel, operationArgs, who)
+        } else if operation == "rank" {
+            commandOutput = cmd.getKarmaRank(channel, operationArgs)
         } else {
             commandOutput = cmd.getKarma(channel, operationArgs)
         }
@@ -72,7 +75,7 @@ func (cmd *Commands) setSetting(channel string, parameters string, who string) s
         params := strings.Fields(parameters)
         if len(params) != 2 {
             log.Printf("Received more than 2 parameters. Params: %s", parameters)
-            commandResult = "Incorrect parameters. Usage kb set setting setting_name integer_setting_value"
+            commandResult = "Incorrect parameters. Usage kb set setting setting_name integer_setting_value :warning:"
         } else {
             settingName := params[0]
             settingValue := params[1]
@@ -84,21 +87,21 @@ func (cmd *Commands) setSetting(channel string, parameters string, who string) s
                 _, err := strconv.Atoi(settingValue)
                 if err != nil {
                     log.Printf("Received incorrect setting value %s", settingValue)
-                    commandResult = "Incorrect parameters. Usage kb set setting setting_name integer_setting_value"
+                    commandResult = "Incorrect parameters. Usage kb set setting setting_name integer_setting_value :warning:"
                 } else {
                     log.Printf("Received setting %s and setting value %s", settingName, settingValue)
                     cmd.db.SetSetting(channel, settingName, settingValue)
                     log.Printf("Setting %s configured to %s", settingName, settingValue)
-                    commandResult = "User <@" + strings.ToUpper(who) + "> configured setting `" + settingName + "` to `" + settingValue + "` on this channel"
+                    commandResult = "User <@" + strings.ToUpper(who) + "> configured setting `" + settingName + "` to `" + settingValue + "` on this channel :white_check_mark:"
                 }
             } else {
                 log.Printf("Received incorrect setting %s", settingName)
-                commandResult = "Incorrect setting name, setting `" + settingName + "` is not a valid setting"
+                commandResult = "Incorrect setting name, setting `" + settingName + "` is not a valid setting :warning:"
             }
         }
     } else {
         log.Printf("Requester user %s, is not admin on channel %s. Operation canceled", who, channel)
-        commandResult = "User <@" + strings.ToUpper(who) + "> has no permissions to set settings on this channel"
+        commandResult = "User <@" + strings.ToUpper(who) + "> has no permissions to set settings on this channel :no_entry_sign:"
     }
     return commandResult
 }
@@ -132,7 +135,7 @@ func (cmd *Commands) setKarma(channel string, parameters string, who string) str
         params := strings.Fields(parameters)
         if len(params) != 2 {
             log.Printf("Received more than 2 parameters. Params: %s", parameters)
-            commandResult = "Incorrect parameters. Usage kb set karma word integer"
+            commandResult = "Incorrect parameters. Usage kb set karma word integer :warning:"
         } else {
             word := params[0]
             karmaValue := params[1]
@@ -140,17 +143,17 @@ func (cmd *Commands) setKarma(channel string, parameters string, who string) str
             karmaValueInt, err := strconv.Atoi(karmaValue)
             if err != nil {
                 log.Printf("Received incorrect karma value %s", karmaValue)
-                commandResult = "Incorrect parameters. Usage kb set karma word integer"
+                commandResult = "Incorrect parameters. Usage kb set karma word integer :warning:"
             } else {
                 log.Printf("Received word %s and karma value %s", word, karmaValue)
                 finalKarma, _ := cmd.db.UpdateKarma(channel, word, karmaValueInt)
                 log.Printf("Karma for word %s updated to %s", word, finalKarma)
-                commandResult = "User <@" + strings.ToUpper(who) + "> set karma for word `" + word + "` to `" + finalKarma + "` on this channel"
+                commandResult = "User <@" + strings.ToUpper(who) + "> set karma for word `" + word + "` to `" + finalKarma + "` on this channel :white_check_mark:"
             }
         }
     } else {
         log.Printf("Requester user %s, is not admin on channel %s. Operation canceled", who, channel)
-        commandResult = "User <@" + strings.ToUpper(who) + "> has no permissions to set karma on this channel"
+        commandResult = "User <@" + strings.ToUpper(who) + "> has no permissions to set karma on this channel :no_entry_sign:"
     }
     return commandResult
 }
@@ -177,6 +180,32 @@ func (cmd *Commands) getKarma(channel string, args string) string {
     return commandResult
 }
 
+// usage: kb rank karma [all], we return top10 words by default
+func (cmd *Commands) getKarmaRank(channel string, args string) string {
+    log.Printf("Getting karma rank in channel %s", channel)
+    var commandResult string
+    getAll := false
+    if args == "all" {
+        getAll = true
+    }
+    rank := cmd.db.GetKarmaRank(channel, getAll)
+    // Rank is an ordered map, we need to order it (https://code-maven.com/slides/golang/sort-map-by-value)
+    ranks := make([]string, 0, len(rank))
+    for word := range rank {
+        ranks = append(ranks, word)
+    }
+    sort.Slice(ranks, func(i, j int) bool {
+        return rank[ranks[i]] > rank[ranks[j]]
+    })
+    commandResult = ":trophy: Karma Rank :trophy: \n"
+    var karmaValue string
+    for _, word := range ranks {
+        karmaValue = strconv.Itoa(rank[word])
+        commandResult += "  `" + word + " (" + karmaValue + ")`\n"
+    }
+    return commandResult
+}
+
 // usage: kb set alias word alias
 func (cmd *Commands) setAlias(channel string, parameters string, who string) string {
     var commandResult string
@@ -187,7 +216,7 @@ func (cmd *Commands) setAlias(channel string, parameters string, who string) str
         params := strings.Fields(parameters)
         if len(params) != 2 {
             log.Printf("Received more than 2 parameters. Params: %s", parameters)
-            commandResult = "Incorrect parameters. Usage kb set alias word alias"
+            commandResult = "Incorrect parameters. Usage kb set alias word alias :warning:"
         } else {
             word := params[0]
             alias := params[1]
@@ -196,22 +225,22 @@ func (cmd *Commands) setAlias(channel string, parameters string, who string) str
                 aliasCreated := cmd.db.SetAlias(word, alias, channel)
                 if aliasCreated == 0 {
                     log.Printf("Alias %s configured for word %s", alias, word)
-                    commandResult = "User <@" + strings.ToUpper(who) + "> configured alias `" + alias + "` for word `" + word + "` on this channel"
+                    commandResult = "User <@" + strings.ToUpper(who) + "> configured alias `" + alias + "` for word `" + word + "` on this channel :white_check_mark:"
                 } else if aliasCreated == 1 {
                     log.Printf("Alias %s already exists for word %s", alias, word)
-                    commandResult = "Alias `" + alias + "` for word `" + word + "` already exists on this channel"
+                    commandResult = "Alias `" + alias + "` for word `" + word + "` already exists on this channel :warning:"
                 } else {
                     log.Printf("Word %s is already in use as an alias in this channel, operation not permitted", word)
-                    commandResult = "Word `" + word + "` is already in use as an alias in this channel, operation not permitted"
+                    commandResult = "Word `" + word + "` is already in use as an alias in this channel, operation not permitted :no_entry_sign:"
                 }
             } else {
                 log.Printf("Invalid alias %s for word %s", alias, word)
-                commandResult = "Invalid alias `" + alias + "` for word `" + word + "`"
+                commandResult = "Invalid alias `" + alias + "` for word `" + word + "` :warning:"
             }
         }
     } else {
         log.Printf("Requester user %s, is not admin on channel %s. Operation canceled", who, channel)
-        commandResult = "User <@" + strings.ToUpper(who) + "> has no permissions to set alias on this channel"
+        commandResult = "User <@" + strings.ToUpper(who) + "> has no permissions to set alias on this channel :no_entry_sign:"
     }
     return commandResult
 }
@@ -226,7 +255,7 @@ func (cmd *Commands) delAlias(channel string, parameters string, who string) str
         params := strings.Fields(parameters)
         if len(params) != 2 {
             log.Printf("Received more than 2 parameters. Params: %s", parameters)
-            commandResult = "Incorrect parameters. Usage kb del alias word alias"
+            commandResult = "Incorrect parameters. Usage kb del alias word alias :warning:"
         } else {
             word := params[0]
             alias := params[1]
@@ -234,15 +263,15 @@ func (cmd *Commands) delAlias(channel string, parameters string, who string) str
             if alias != word {
                 cmd.db.DelAlias(channel, word, alias)
                 log.Printf("Alias %s deleted for word %s", alias, word)
-                commandResult = "User <@" + strings.ToUpper(who) + "> deleted alias `" + alias + "` for word `" + word + "` on this channel"
+                commandResult = "User <@" + strings.ToUpper(who) + "> deleted alias `" + alias + "` for word `" + word + "` on this channel :white_check_mark:"
             } else {
                 log.Printf("Invalid alias %s for word %s", alias, word)
-                commandResult = "Invalid alias `" + alias + "` for word `" + word + "`"
+                commandResult = "Invalid alias `" + alias + "` for word `" + word + "` :warning:"
             }
         }
     } else {
         log.Printf("Requester user %s, is not admin on channel %s. Operation canceled", who, channel)
-        commandResult = "User <@" + strings.ToUpper(who) + "> has no permissions to delete alias on this channel"
+        commandResult = "User <@" + strings.ToUpper(who) + "> has no permissions to delete alias on this channel :no_entry_sign:"
     }
     return commandResult
 }
@@ -278,7 +307,7 @@ func (cmd *Commands) delAdmin(channel string, user string, who string) string {
         log.Printf("Final user: %s", user)
         if len(admins) == 0 {
             log.Println("Channel has no admins")
-            commandResult = "Channel has no admins configured. Deletion canceled."
+            commandResult = "Channel has no admins configured. Deletion canceled. :warning:"
         } else {
             // Check if user requesting an admin addition is admin for the channel
             requesterIsAdmin := contains(admins, who)
@@ -288,19 +317,19 @@ func (cmd *Commands) delAdmin(channel string, user string, who string) string {
                 if adminAlreadyExists {
                     log.Printf("User %s is already admin for channel %s, deleting it from admins users", user, channel)
                     cmd.db.DeleteAdmin(channel, user)
-                    commandResult = "User <@" + strings.ToUpper(user) + "> deleted from admins for this channel"
+                    commandResult = "User <@" + strings.ToUpper(user) + "> deleted from admins for this channel :white_check_mark:"
                 } else {
                     log.Printf("User %s is not configured as admin for channel %s. Deletion canceled.", user, channel)
-                    commandResult = "User <@" + strings.ToUpper(user) + "> is not admin for this channel. Deletion canceled."
+                    commandResult = "User <@" + strings.ToUpper(user) + "> is not admin for this channel. Deletion canceled. :warning:"
                 }
             } else {
                 log.Printf("Requester user %s, is not admin on channel %s. Operation canceled", who, channel)
-                commandResult = "User <@" + strings.ToUpper(who) + "> has no permissions to delete admins from this channel"
+                commandResult = "User <@" + strings.ToUpper(who) + "> has no permissions to delete admins from this channel :no_entry_sign:"
             }
         } 
     } else {
         log.Printf("No user detected, received %s as user", user)
-        commandResult = "No user detected. Usage kb del admin @user"
+        commandResult = "No user detected. Usage kb del admin @user :warning:"
     }
     return commandResult
 }
@@ -321,7 +350,7 @@ func (cmd *Commands) setAdmin(channel string, user string, who string) string {
             log.Println("No admins exists, we can create one")
             cmd.db.CreateAdmin(channel, user)
             log.Printf("Admin %s configured as first admin for channel %s", user, channel)
-            commandResult = "User <@" + strings.ToUpper(user) + "> configured as admin"
+            commandResult = "User <@" + strings.ToUpper(user) + "> configured as admin :white_check_mark:"
         } else {
             // Check if user requesting an admin addition is admin for the channel
             requesterIsAdmin := contains(admins, who)
@@ -330,20 +359,20 @@ func (cmd *Commands) setAdmin(channel string, user string, who string) string {
                 adminAlreadyExists := contains(admins, user)
                 if adminAlreadyExists {
                     log.Printf("User %s is already admin for channel %s", user, channel)
-                    commandResult = "User <@" + strings.ToUpper(user) + "> is already an admin for this channel"
+                    commandResult = "User <@" + strings.ToUpper(user) + "> is already an admin for this channel :warning:"
                 } else {
                     cmd.db.CreateAdmin(channel, user)
                     log.Printf("User %s configured admin for channel %s by user %s", user, channel, who)
-                    commandResult = "User <@" + strings.ToUpper(user) + "> configured as admin for this channel"
+                    commandResult = "User <@" + strings.ToUpper(user) + "> configured as admin for this channel :white_check_mark:"
                 }
             } else {
                 log.Printf("Requester user %s, is not admin on channel %s. Operation canceled", who, channel)
-                commandResult = "User <@" + strings.ToUpper(who) + "> has no permissions to configure admins for this channel"
+                commandResult = "User <@" + strings.ToUpper(who) + "> has no permissions to configure admins for this channel :no_entry_sign:"
             }
         }
     } else {
         log.Printf("No user detected, received %s as user", user)
-        commandResult = "No user detected. Usage kb set admin @user"
+        commandResult = "No user detected. Usage kb set admin @user :warning:"
     }
     return commandResult
 }

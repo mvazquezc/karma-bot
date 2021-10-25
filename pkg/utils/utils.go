@@ -54,8 +54,12 @@ func HandleKarma(rtm *slack.RTM, ev *slack.MessageEvent, db database.Database, w
 
     if karmaCounter != 0 {
         userKarma, notifyKarma := db.UpdateKarma(channelName, word, karmaCounter)
+        karmaEmoji := ":thumbsup:"
+        if karmaCounter < 0 {
+            karmaEmoji = ":thumbsdown:"
+        }
         if notifyKarma {
-            karmaMessage := "`" + word + "` has `" + userKarma + "` karma points!"
+            karmaMessage := "`" + word + "` has `" + userKarma + "` karma points! " + karmaEmoji
             rtm.SendMessage(rtm.NewOutgoingMessage(karmaMessage, ev.Channel))
         }
     }
@@ -84,7 +88,7 @@ func GetUsername(api *slack.Client, word string) string {
 
 // PrintCommandsUsage Prints a help messages for implemented commands
 func PrintCommandsUsage(rtm *slack.RTM, ev *slack.MessageEvent) {
-    karmaHelp := "*Karma Commands*:\n- Add/Remove karma to the word's current karma: `kb set karma <word> <+karma|-karma>`\n- Get current karma for a given word: `kb get karma <word>`\n"
+    karmaHelp := "*Karma Commands*:\n- Add/Remove karma to the word's current karma: `kb set karma <word> <+karma|-karma>`\n- Get current karma for a given word: `kb get karma <word>`\n- Get current karma ranking for the channel: `kb rank karma [all]`\n"
     adminHelp := "*Admin Commands*:\n- Set admin on current channel: `kb set admin @user`\n- Get admins on current channel: `kb get admin`\n- Remove admin on current channel: `kb del admin @user`\n"
     settingsHelp := "*Settings Commands*:\n- Set setting on current channel: `kb set setting <setting_name> <setting_value>`\n- Get setting value on current channel: `kb get setting <setting_name>`\n"
     aliasHelp := "*Alias Commands*:\n- Set alias for a given word on current channel: `kb set alias <word> <alias>`\n- Get aliases for a word on current channel: `kb get alias <word>`\n- Remove alias for a word: `kb del alias <word> <alias>`\n"

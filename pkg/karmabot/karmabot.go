@@ -64,7 +64,7 @@ func NewKarmaBot(apiToken string, dbFile string) {
             text = strings.ToLower(text)
             // Commands are implemented using a keyword rather than using slash commands to avoid
             // having to publish the bot in order to receive webhooks
-            r := regexp.MustCompile("^(kb) (set|get|del) (karma|admin|setting|alias|help)(.*)$")
+            r := regexp.MustCompile("^(kb) (set|get|del|rank) (karma|admin|setting|alias|help)(.*)$")
             matched := r.MatchString(text)
             if matched {
                 captureGroups := r.FindStringSubmatch(text)

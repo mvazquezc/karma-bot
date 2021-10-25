@@ -268,3 +268,29 @@ func (db *Database) GetCurrentKarma(channel string, word string) int {
     }
     return result
 }
+
+// GetKarmaRank returns the rank of karma words for a specific channel
+func (db *Database) GetKarmaRank(channel string, returnAll bool) map[string]int {
+    var query string
+    if returnAll {
+        query = "SELECT word, karma FROM karma WHERE channel == '" + channel + "' ORDER BY karma DESC;"
+    } else {
+        query = "SELECT word, karma FROM karma WHERE channel == '" + channel + "' ORDER BY karma DESC LIMIT 10;"
+    }
+    rows := db.runQuery(query)
+    defer rows.Close()
+
+    var word string
+    var karma int
+
+    rank := map[string]int{}
+
+    for rows.Next() {
+        err := rows.Scan(&word, &karma)
+        if err != nil {
+            panic(err)
+        }
+        rank[word] = karma
+    }
+    return rank
+}

@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-    version := "1.1"
+    version := "1.2"
     log.Printf("Karma-bot version %s", version)
     apiToken := os.Getenv("API_TOKEN")
     // Check if database exists

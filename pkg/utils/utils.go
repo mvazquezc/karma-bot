@@ -73,7 +73,12 @@ func HandleKarma(rtm *slack.RTM, ev *slack.MessageEvent, db database.Database, w
         }
         if notifyKarma {
             karmaMessage := "`" + word + "` has `" + userKarma + "` karma points! " + karmaEmoji
-            rtm.SendMessage(rtm.NewOutgoingMessage(karmaMessage, ev.Channel))
+            resp := rtm.NewOutgoingMessage(karmaMessage, ev.Channel)
+            // Check if message is from a thread, and if so set the response to be in-thread
+            if ev.Msg.ThreadTimestamp != "" {
+                resp.ThreadTimestamp = ev.Msg.ThreadTimestamp
+            }
+            rtm.SendMessage(resp)
         }
     }
 }

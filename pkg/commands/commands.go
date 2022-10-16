@@ -27,6 +27,10 @@ func (cmd *Commands) ProcessCommand(channel string, who string, operation string
 	log.Printf("Processing operation: %s, operationGroup: %s, operationArgs: %s, in channel %s sent by user %s", operation, operationGroup, operationArgs, channel, who)
 	var commandOutput string
 	switch operationGroup {
+	case "globalkarma":
+		if operation == "rank" {
+			commandOutput = cmd.getGlobalKarmaRank(operationArgs)
+		}
 	case "karma":
 		if operation == "set" {
 			commandOutput = cmd.setKarma(channel, operationArgs, who)
@@ -206,6 +210,31 @@ func (cmd *Commands) getKarmaRank(channel string, args string) string {
 	return commandResult
 }
 
+// usage: kb rank globalkarma [all], we return top10 words by default
+func (cmd *Commands) getGlobalKarmaRank(args string) string {
+	var commandResult string
+	getAll := false
+	if args == "all" {
+		getAll = true
+	}
+	rank := cmd.db.GetGlobalKarmaRank(getAll)
+	// Rank is an ordered map, we need to order it (https://code-maven.com/slides/golang/sort-map-by-value)
+	ranks := make([]string, 0, len(rank))
+	for word := range rank {
+		ranks = append(ranks, word)
+	}
+	sort.Slice(ranks, func(i, j int) bool {
+		return rank[ranks[i]] > rank[ranks[j]]
+	})
+	commandResult = ":trophy: Global Karma Rank :trophy: \n"
+	var karmaValue string
+	for _, word := range ranks {
+		karmaValue = strconv.Itoa(rank[word])
+		commandResult += "  `" + word + " (" + karmaValue + ")`\n"
+	}
+	return commandResult
+}
+
 // usage: kb set alias word alias
 func (cmd *Commands) setAlias(channel string, parameters string, who string) string {
 	var commandResult string
@@ -261,9 +290,16 @@ func (cmd *Commands) delAlias(channel string, parameters string, who string) str
 			alias := params[1]
 			log.Printf("Received word %s and alias %s", word, alias)
 			if alias != word {
-				cmd.db.DelAlias(channel, word, alias)
-				log.Printf("Alias %s deleted for word %s", alias, word)
-				commandResult = "User <@" + strings.ToUpper(who) + "> deleted alias `" + alias + "` for word `" + word + "` on this channel :white_check_mark:"
+				aliasExist := cmd.db.GetAlias(word, channel)
+				if len(aliasExist) > 0 {
+					log.Printf("Alias exist for the word %s", aliasExist)
+					cmd.db.DelAlias(channel, word, alias)
+					log.Printf("Alias %s deleted for word %s", alias, word)
+					commandResult = "User <@" + strings.ToUpper(who) + "> deleted alias `" + alias + "` for word `" + word + "` on this channel :white_check_mark:"
+				} else {
+					log.Printf("Alias %s does not exist for word %s", alias, word)
+					commandResult = "Alias `" + alias + "` does not exist for word `" + word + "` :warning:"
+				}
 			} else {
 				log.Printf("Invalid alias %s for word %s", alias, word)
 				commandResult = "Invalid alias `" + alias + "` for word `" + word + "` :warning:"

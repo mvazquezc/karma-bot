@@ -64,7 +64,7 @@ func NewKarmaBot(apiToken string, dbFile string) {
 
 			// Commands are implemented using a keyword rather than using slash commands to avoid
 			// having to publish the bot in order to receive webhooks
-			r := regexp.MustCompile("^(kb) (set|get|del|rank) (karma|admin|setting|alias|help)(.*)$")
+			r := regexp.MustCompile("^(kb) (set|get|del|rank) (karma|globalkarma|admin|setting|alias|help)(.*)$")
 			matched := r.MatchString(text)
 			if matched {
 				captureGroups := r.FindStringSubmatch(text)
@@ -119,14 +119,27 @@ func NewKarmaBot(apiToken string, dbFile string) {
 					}
 
 					if strings.HasPrefix(karmaWord, "<@") && strings.HasSuffix(karmaWord, ">") {
-						karmaWord = utils.GetUsername(api, karmaWord)
+						// User can have an alias configured
+						alias := db.GetAlias(karmaWord, channelName)
+						if len(alias) > 0 {
+							log.Printf("User %s has an alias configured, skipping username retrieval", karmaWord)
+						} else {
+							karmaWord = utils.GetUsername(api, karmaWord)
+						}
 					}
 					if karmaWord == "!here>" {
 						log.Printf("@here detected, getting all users from the channel for the karma command")
 						karmaWord = ""
 						for _, member := range members {
-							member = "<@" + member + ">"
-							karmaWord = utils.GetUsername(api, member)
+							member = strings.ToLower("<@" + member + ">")
+							// User can have an alias configured
+							alias := db.GetAlias(member, channelName)
+							if len(alias) > 0 {
+								log.Printf("User %s has an alias configured, skipping username retrieval", member)
+								karmaWord = alias
+							} else {
+								karmaWord = utils.GetUsername(api, member)
+							}
 							utils.HandleKarma(rtm, ev, db, karmaWord, channelName, karmaCounter)
 						}
 						// Continue to next loop iteration since karma for @here is already managed

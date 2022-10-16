@@ -117,6 +117,7 @@ func PrintCommandsUsage(rtm *slack.RTM, ev *slack.MessageEvent) {
 	adminHelp := "*Admin Commands*:\n- Set admin on current channel: `kb set admin @user`\n- Get admins on current channel: `kb get admin`\n- Remove admin on current channel: `kb del admin @user`\n"
 	settingsHelp := "*Settings Commands*:\n- Set setting on current channel: `kb set setting <setting_name> <setting_value>`\n- Get setting value on current channel: `kb get setting <setting_name>`\n"
 	aliasHelp := "*Alias Commands*:\n- Set alias for a given word on current channel: `kb set alias <word> <alias>`\n- Get aliases for a word on current channel: `kb get alias <word>`\n- Remove alias for a word: `kb del alias <word> <alias>`\n"
-	commandsHelp := karmaHelp + adminHelp + settingsHelp + aliasHelp
+	rankHelp := "*Rank Commands*:\n- Get top 10 words on current channel: `kb rank karma`\n- Get full rank of words on current channel: `kb rank karma all`\n- Get top 10 words rank of words across channels: `kb rank globalkarma`\n- Get full rank of words across channels: `kb rank globalkarma all`"
+	commandsHelp := karmaHelp + adminHelp + settingsHelp + aliasHelp + rankHelp
 	rtm.SendMessage(rtm.NewOutgoingMessage(commandsHelp, ev.Channel))
 }

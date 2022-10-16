@@ -311,3 +311,29 @@ func (db *Database) GetKarmaRank(channel string, returnAll bool) map[string]int 
 	}
 	return rank
 }
+
+// GetGlobalKarmaRank returns the rank of karma words for all channels
+func (db *Database) GetGlobalKarmaRank(returnAll bool) map[string]int {
+	var query string
+	if returnAll {
+		query = "SELECT word, karma FROM karma ORDER BY karma DESC;"
+	} else {
+		query = "SELECT word, karma FROM karma ORDER BY karma DESC LIMIT 10;"
+	}
+	rows := db.runQuery(query)
+	defer rows.Close()
+
+	var word string
+	var karma int
+
+	rank := map[string]int{}
+
+	for rows.Next() {
+		err := rows.Scan(&word, &karma)
+		if err != nil {
+			panic(err)
+		}
+		rank[word] = karma
+	}
+	return rank
+}

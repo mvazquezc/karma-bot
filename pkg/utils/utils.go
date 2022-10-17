@@ -54,6 +54,15 @@ func HandleKarma(rtm *slack.RTM, ev *slack.MessageEvent, db database.Database, w
 	}
 	useKarmaEmojis, _ := strconv.Atoi(useKarmaEmojisSetting)
 
+	user := strings.ToLower("<@" + ev.User + ">")
+	userAlias := db.GetAlias(user, channelName)
+
+	if word == userAlias {
+		// Check that user is not giving karma to one of their aliases
+		log.Printf("User %s granted karma to theirself, skipping", user)
+		return
+	}
+
 	if len(alias) > 0 {
 		log.Printf("Word %s has an alias configured, using alias %s", word, alias)
 		word = alias

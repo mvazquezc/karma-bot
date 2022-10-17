@@ -256,8 +256,8 @@ func (cmd *Commands) setAlias(channel string, parameters string, who string) str
 					log.Printf("Alias %s configured for word %s", alias, word)
 					commandResult = "User <@" + strings.ToUpper(who) + "> configured alias `" + alias + "` for word `" + word + "` on this channel :white_check_mark:"
 				} else if aliasCreated == 1 {
-					log.Printf("Alias %s already exists for word %s", alias, word)
-					commandResult = "Alias `" + alias + "` for word `" + word + "` already exists on this channel :warning:"
+					log.Printf("Word %s already has an alias", word)
+					commandResult = "Word `" + word + "` already has an alias on this channel :warning:"
 				} else {
 					log.Printf("Word %s is already in use as an alias in this channel, operation not permitted", word)
 					commandResult = "Word `" + word + "` is already in use as an alias in this channel, operation not permitted :no_entry_sign:"

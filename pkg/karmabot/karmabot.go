@@ -119,6 +119,12 @@ func NewKarmaBot(apiToken string, dbFile string) {
 					}
 
 					if strings.HasPrefix(karmaWord, "<@") && strings.HasSuffix(karmaWord, ">") {
+						// Check that users are not giving karma to theirselfs
+						user := strings.ToLower("<@" + ev.User + ">")
+						if user == karmaWord {
+							log.Printf("User %s granted karma to theirself, skipping", user)
+							continue
+						}
 						// User can have an alias configured
 						alias := db.GetAlias(karmaWord, channelName)
 						if len(alias) > 0 {

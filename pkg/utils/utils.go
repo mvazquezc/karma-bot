@@ -93,6 +93,8 @@ func HandleKarma(rtm *slack.RTM, ev *slack.MessageEvent, db database.Database, w
 			// Check if message is from a thread, and if so set the response to be in-thread
 			if ev.Msg.ThreadTimestamp != "" {
 				resp.ThreadTimestamp = ev.Msg.ThreadTimestamp
+			} else { // Reply in a new thread otherwise
+				resp.ThreadTimestamp = ev.Msg.Timestamp
 			}
 			rtm.SendMessage(resp)
 		}

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mvazquezc/karma-bot/pkg/database"
 )
@@ -150,7 +151,7 @@ func (cmd *Commands) setKarma(channel string, parameters string, who string) str
 				commandResult = "Incorrect parameters. Usage kb set karma word integer :warning:"
 			} else {
 				log.Printf("Received word %s and karma value %s", word, karmaValue)
-				finalKarma, _, _ := cmd.db.UpdateKarma(channel, word, karmaValueInt)
+				finalKarma, _, _ := cmd.db.UpdateKarma(channel, word, karmaValueInt, who, time.Now().Unix())
 				log.Printf("Karma for word %s updated to %s", word, finalKarma)
 				commandResult = "User <@" + strings.ToUpper(who) + "> set karma for word `" + word + "` to `" + finalKarma + "` on this channel :white_check_mark:"
 			}

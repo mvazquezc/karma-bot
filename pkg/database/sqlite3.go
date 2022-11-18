@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -27,8 +28,9 @@ func (db *Database) newDatabase() {
 		panic(err)
 	}
 	dbFile.Close()
+
 	statement := `
-        create table karma (channel text, word text, karma integer);
+        create table karma (channel text, word text, karma integer, last_karma_timestamp integer, last_karma_user text);
         delete from karma;
         create table alias (channel text, alias text, word text);
         delete from alias;
@@ -222,14 +224,15 @@ func (db *Database) SetSetting(channel string, settingName string, settingValue 
 }
 
 // UpdateKarma updates the karma for a given word in a given channel
-func (db *Database) UpdateKarma(channel string, word string, karmaCounter int) (finalKarma string, notifyKarma bool, intFinalKarma int) {
+func (db *Database) UpdateKarma(channel string, word string, karmaCounter int, lastKarmaUser string, lastKarmaTimestamp int64) (finalKarma string, notifyKarma bool, intFinalKarma int) {
 	// get current karma
 	currentKarma := db.GetCurrentKarma(channel, word)
 
 	log.Printf("Current karma for word %s in channel %s is %d", word, channel, currentKarma)
 	// Initialize karma if needed
 	if currentKarma == -256256 {
-		karmaInit := "INSERT INTO karma(channel, word, karma) values (\"" + channel + "\",\"" + word + "\"," + "0" + ")"
+		karmaInit := "INSERT INTO karma(channel, word, karma, last_karma_user, last_karma_timestamp) values (\"" + channel + "\",\"" + word + "\"," + "0" + ",\"" + lastKarmaUser + "\"," + strconv.FormatInt(lastKarmaTimestamp, 10) + ")"
+
 		db.runStatement(karmaInit)
 		currentKarma = 0
 	}
@@ -247,7 +250,7 @@ func (db *Database) UpdateKarma(channel string, word string, karmaCounter int) (
 		notifyKarma = true
 	}
 	finalKarma = strconv.Itoa(currentKarma)
-	karmaUpdate := "UPDATE karma SET karma = " + finalKarma + " WHERE word == '" + word + "' AND channel == '" + channel + "';"
+	karmaUpdate := "UPDATE karma SET karma = " + finalKarma + ", last_karma_user = \"" + lastKarmaUser + "\"" + ", last_karma_timestamp = " + strconv.FormatInt(lastKarmaTimestamp, 10) + " WHERE word == '" + word + "' AND channel == '" + channel + "';"
 	db.runStatement(karmaUpdate)
 	log.Printf("Karma for word %s in channel %s updated to %s", word, channel, finalKarma)
 	return finalKarma, notifyKarma, currentKarma
@@ -284,6 +287,33 @@ func (db *Database) GetCurrentKarma(channel string, word string) int {
 		}
 	}
 	return result
+}
+
+// KarmaCooldownTimeout returns true if the user/word cooldown (10s) is completed
+// This avoids same user spamming karma for a word
+func (db *Database) KarmaCooldownTimeout(channel string, word string, user string) bool {
+	query := "SELECT last_karma_user, last_karma_timestamp FROM karma WHERE word == '" + word + "' AND channel == '" + channel + "';"
+	rows := db.runQuery(query)
+	defer rows.Close()
+
+	var lastKarmaUser string
+	var lastKarmaTimestamp int
+
+	for rows.Next() {
+		err := rows.Scan(&lastKarmaUser, &lastKarmaTimestamp)
+		if err != nil {
+			panic(err)
+		}
+	}
+	// If user giving karma is different from the last user who gave karma, we skip the cooldown
+	if lastKarmaUser != user {
+		return true
+	}
+	// check cooldown 10s
+	if time.Now().Unix()-int64(lastKarmaTimestamp) > 10 {
+		return true
+	}
+	return false
 }
 
 // GetKarmaRank returns the rank of karma words for a specific channel

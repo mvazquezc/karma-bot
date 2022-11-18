@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mvazquezc/karma-bot/pkg/database"
 	"github.com/slack-go/slack"
@@ -68,8 +69,14 @@ func HandleKarma(rtm *slack.RTM, ev *slack.MessageEvent, db database.Database, w
 		word = alias
 	}
 
+	//Check karma cooldown (10s)
+	if !db.KarmaCooldownTimeout(channelName, word, ev.User) {
+		log.Printf("User %s has an active cooldown for word %s in channel %s", ev.User, word, channelName)
+		return
+	}
+
 	if karmaCounter != 0 {
-		wordKarma, notifyKarma, intWordKarma := db.UpdateKarma(channelName, word, karmaCounter)
+		wordKarma, notifyKarma, intWordKarma := db.UpdateKarma(channelName, word, karmaCounter, ev.User, time.Now().Unix())
 		// Only send emojis if those are enabled in the channel
 		karmaEmoji := ""
 		globalKarmaMsg := ""
@@ -131,4 +138,14 @@ func PrintCommandsUsage(rtm *slack.RTM, ev *slack.MessageEvent) {
 	rankHelp := "*Rank Commands*:\n- Get top 10 words on current channel: `kb rank karma`\n- Get full rank of words on current channel: `kb rank karma all`\n- Get top 10 words rank of words across channels: `kb rank globalkarma`\n- Get full rank of words across channels: `kb rank globalkarma all`"
 	commandsHelp := karmaHelp + adminHelp + settingsHelp + aliasHelp + rankHelp
 	rtm.SendMessage(rtm.NewOutgoingMessage(commandsHelp, ev.Channel))
+}
+
+// Contains returns true if a string is found on a slice
+func Contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }

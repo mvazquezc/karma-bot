@@ -1,14 +1,13 @@
 package karmabot
 
 import (
-	"log"
-	"regexp"
-	"strings"
-
 	"github.com/mvazquezc/karma-bot/pkg/commands"
 	"github.com/mvazquezc/karma-bot/pkg/database"
 	"github.com/mvazquezc/karma-bot/pkg/utils"
 	"github.com/slack-go/slack"
+	"log"
+	"regexp"
+	"strings"
 )
 
 // NewKarmaBot New bot
@@ -83,6 +82,8 @@ func NewKarmaBot(apiToken string, dbFile string) {
 			}
 			splitText := strings.Fields(text)
 			splitText = utils.FixEmptyKarma(splitText)
+			// Create empty slice, we will use it to remove duplicated words
+			var karmaWordsInMessage []string
 			for _, word := range splitText {
 				trimmedWord := strings.TrimSpace(word)
 				// Get rid of ``` at the start of the word, usually added by code blocks on slack
@@ -146,12 +147,20 @@ func NewKarmaBot(apiToken string, dbFile string) {
 							} else {
 								karmaWord = utils.GetUsername(api, member)
 							}
-							utils.HandleKarma(rtm, ev, db, karmaWord, channelName, karmaCounter)
+							// Avoid duplicated karma in the same message
+							if !utils.Contains(karmaWordsInMessage, karmaWord) {
+								utils.HandleKarma(rtm, ev, db, karmaWord, channelName, karmaCounter)
+							}
+							karmaWordsInMessage = append(karmaWordsInMessage, karmaWord)
 						}
 						// Continue to next loop iteration since karma for @here is already managed
 						continue
 					}
-					utils.HandleKarma(rtm, ev, db, karmaWord, channelName, karmaCounter)
+					// Avoid duplicated karma in the same message
+					if !utils.Contains(karmaWordsInMessage, karmaWord) {
+						utils.HandleKarma(rtm, ev, db, karmaWord, channelName, karmaCounter)
+					}
+					karmaWordsInMessage = append(karmaWordsInMessage, karmaWord)
 				}
 			}
 

@@ -46,6 +46,9 @@ func FixEmptyKarma(text []string) []string {
 // HandleKarma Updates the karma for a given word and sends a message if required
 func HandleKarma(rtm *slack.RTM, ev *slack.MessageEvent, db database.Database, word string, channelName string, karmaCounter int) {
 
+	// Sanitize word in case it has ' to avoid SQL errors
+	word = strings.ReplaceAll(word, "'", "")
+
 	alias := db.GetAlias(word, channelName)
 
 	useKarmaEmojisSetting := db.GetSetting(channelName, "use_karma_emojis")

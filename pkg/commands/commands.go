@@ -37,6 +37,8 @@ func (cmd *Commands) ProcessCommand(channel string, who string, operation string
 			commandOutput = cmd.setKarma(channel, operationArgs, who)
 		} else if operation == "rank" {
 			commandOutput = cmd.getKarmaRank(channel, operationArgs)
+		} else if operation == "del" {
+			commandOutput = cmd.delKarma(channel, operationArgs, who)
 		} else {
 			commandOutput = cmd.getKarma(channel, operationArgs)
 		}
@@ -126,6 +128,35 @@ func (cmd *Commands) getSetting(channel string, parameters string) string {
 			log.Printf("Setting %s is configured to %s", a, settingValue)
 			commandResult += "Setting `" + a + "` is configured to `" + settingValue + "`\n"
 		}
+	}
+	return commandResult
+}
+
+// usage: kb del karma word
+func (cmd *Commands) delKarma(channel string, parameters string, who string) string {
+	var commandResult string
+	admins, _ := cmd.getAdmins(channel)
+	requesterIsAdmin := contains(admins, who)
+	if requesterIsAdmin {
+		// We expect parameters to have something like "word karmaValue" so we need to check that
+		params := strings.Fields(parameters)
+		if len(params) != 1 {
+			log.Printf("Received more than 2 parameters. Params: %s", parameters)
+			commandResult = "Incorrect parameters. Usage kb del karma word :warning:"
+		} else {
+			word := params[0]
+
+			log.Printf("Received word %s", word)
+			// Update karma adds/removes karma based on +x or -x where x is the number of points you want to add/substract
+			currentKarma := cmd.db.GetCurrentKarma(channel, word)
+			// By multiplying the currentKarma by -1 we get the negative (or positive) karma we need to set for resetting the counter to 0
+			finalKarma, _, _ := cmd.db.UpdateKarma(channel, word, currentKarma*-1, who, time.Now().Unix())
+			log.Printf("Karma for word %s reseted to %s", word, finalKarma)
+			commandResult = "User <@" + strings.ToUpper(who) + "> reseted karma for word `" + word + "` on this channel :white_check_mark:"
+		}
+	} else {
+		log.Printf("Requester user %s, is not admin on channel %s. Operation canceled", who, channel)
+		commandResult = "User <@" + strings.ToUpper(who) + "> has no permissions to reset karma on this channel :no_entry_sign:"
 	}
 	return commandResult
 }

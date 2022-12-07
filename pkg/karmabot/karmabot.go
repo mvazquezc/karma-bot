@@ -55,7 +55,6 @@ func NewKarmaBot(apiToken string, dbFile string) {
 
 			channelName = channelInformation.NameNormalized
 			members = membersInformation
-
 			//log.Printf("Channel name: %s, members: %s", channelName, members)
 			text := ev.Text
 			text = strings.TrimSpace(text)
@@ -74,6 +73,13 @@ func NewKarmaBot(apiToken string, dbFile string) {
 				if operation == "get" && operationGroup == "help" {
 					log.Printf("Printing help on channel %s", channelName)
 					utils.PrintCommandsUsage(rtm, ev)
+				} else if operation == "set" && operationGroup == "karma" {
+					commandOutput := "Setting karma on channels with less than 3 people is not permitted :no_entry_sign:"
+					// A channel with only one person will have at least two members, person + karmabot
+					if len(members) > 2 {
+						commandOutput = commands.ProcessCommand(channelName, who, operation, operationGroup, operationArgs)
+					}
+					rtm.SendMessage(rtm.NewOutgoingMessage(commandOutput, ev.Channel))
 				} else {
 					// add user that fires the command to the args
 					commandOutput := commands.ProcessCommand(channelName, who, operation, operationGroup, operationArgs)
